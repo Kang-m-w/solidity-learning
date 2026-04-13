@@ -51,13 +51,20 @@ describe("My Token", () => {
 
   describe("Transfer", () => {
     it("should have 0.5MT", async () => {
+      const signer0 = signers[0];
       const signer1 = signers[1];
-      const tx = await myTokenC.transfer(
-        hre.ethers.parseUnits("0.5", decimals),
-        signer1.address,
-      );
-      const receipt = await tx.wait();
-      console.log(receipt?.logs)
+      await expect(
+        myTokenC.transfer(
+          hre.ethers.parseUnits("0.5", decimals),
+          signer1.address,
+        ),
+      )
+        .to.emit(myTokenC, "Transfer")
+        .withArgs(
+          signer0.address,
+          signer1.address,
+          hre.ethers.parseUnits("0.5", decimals),
+        );
       expect(await myTokenC.balanceOf(signer1.address)).equal(
         hre.ethers.parseUnits("0.5", decimals),
       );
@@ -68,7 +75,7 @@ describe("My Token", () => {
       await expect(
         myTokenC.transfer(
           hre.ethers.parseUnits((mintingAmount + 1n).toString(), decimals),
-          signer1.address
+          signer1.address,
         ),
       ).to.be.revertedWith("insufficient balance");
     });
