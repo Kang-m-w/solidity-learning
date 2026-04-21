@@ -83,7 +83,6 @@ describe("My Token", () => {
 
   describe("TranserFrom", () => {
     it("should emit Approval event", async () => {
-      const signer0 = signers[0];
       const signer1 = signers[1];
       await expect(
         myTokenC.approve(
