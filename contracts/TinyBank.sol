@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 interface IMyToken {
-  function transfer(address from, address to) external;
+  function transfer(uint256 amount, address to) external;
   function transferFrom(address from, address to, uint256 amount) external;
 }
 
