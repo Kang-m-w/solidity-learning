@@ -10,11 +10,19 @@ describe("My Token", () => {
 
   beforeEach("should deploy", async () => {
     signers = await hre.ethers.getSigners();
+
+    const managers = [
+      signers[0].address,
+      signers[1].address,
+      signers[2].address,
+    ];
+
     myTokenC = await hre.ethers.deployContract("MyToken", [
       "MyToken",
       "MT",
       DECIMALS,
       MINTING_AMOUNT,
+      managers,
     ]);
   });
 
@@ -31,126 +39,156 @@ describe("My Token", () => {
       expect(await myTokenC.decimals()).equal(DECIMALS);
     });
 
-    it("should return 100 totalSupply", async () => {
+    it("should return totalSupply", async () => {
       expect(await myTokenC.totalSupply()).equal(
         MINTING_AMOUNT * 10n ** DECIMALS,
       );
     });
+
+    it("should have at least 3 managers", async () => {
+      expect(await myTokenC.managerCount()).equal(3);
+    });
+  });
+
+  describe("Confirm", () => {
+    it("should allow manager to confirm", async () => {
+      await expect(myTokenC.connect(signers[0]).confirm()).to.not.be.reverted;
+    });
+
+    it("should revert when non-manager confirms", async () => {
+      await expect(
+        myTokenC.connect(signers[4]).confirm(),
+      ).to.be.revertedWith("You are not a manager");
+    });
+
+    it("should revert when same manager confirms twice", async () => {
+      await myTokenC.connect(signers[0]).confirm();
+
+      await expect(
+        myTokenC.connect(signers[0]).confirm(),
+      ).to.be.revertedWith("Already confirmed");
+    });
   });
 
   describe("Mint", () => {
-    it("should return 1MT balance for signer 0", async () => {
-      const signer0 = signers[0];
-      expect(await myTokenC.balanceOf(signer0)).equal(
+    it("should return initial balance for signer 0", async () => {
+      expect(await myTokenC.balanceOf(signers[0].address)).equal(
         MINTING_AMOUNT * 10n ** DECIMALS,
       );
     });
 
-    // owner minting
-    it("should allow owner to mint token", async () => {
-      const owner = signers[0];
+    it("should revert when non-manager tries to mint", async () => {
+      const hacker = signers[4];
       const mintingAmount = hre.ethers.parseUnits("100", DECIMALS);
+
       await expect(
-        myTokenC.connect(owner).mint(mintingAmount, owner.address),
-      ).to.not.be.reverted;
+        myTokenC.connect(hacker).mint(mintingAmount, hacker.address),
+      ).to.be.revertedWith("You are not a manager");
     });
 
-    // TDD: Test Driven Development
-    it("should return or revert when minting infinitly", async () => {
-      const hacker = signers[2];
-      const mintingAgainAmount = hre.ethers.parseUnits("10000", DECIMALS);
+    it("should revert when not all managers confirmed yet", async () => {
+      const manager = signers[0];
+      const mintingAmount = hre.ethers.parseUnits("100", DECIMALS);
+
+      await myTokenC.connect(signers[0]).confirm();
+      await myTokenC.connect(signers[1]).confirm();
+
       await expect(
-        myTokenC.connect(hacker).mint(mintingAgainAmount, hacker.address),
-      ).to.be.revertedWith("You are not authorized to manage this contract");
+        myTokenC.connect(manager).mint(mintingAmount, manager.address),
+      ).to.be.revertedWith("Not all confirmed yet");
+    });
+
+    it("should allow manager to mint after all managers confirmed", async () => {
+      const manager = signers[0];
+      const mintingAmount = hre.ethers.parseUnits("100", DECIMALS);
+
+      await myTokenC.connect(signers[0]).confirm();
+      await myTokenC.connect(signers[1]).confirm();
+      await myTokenC.connect(signers[2]).confirm();
+
+      await expect(
+        myTokenC.connect(manager).mint(mintingAmount, manager.address),
+      ).to.not.be.reverted;
     });
   });
 
   describe("Transfer", () => {
-    it("should have 0.5MT", async () => {
-      const signer0 = signers[0];
-      const signer1 = signers[1];
+    it("should transfer 0.5MT", async () => {
       await expect(
         myTokenC.transfer(
           hre.ethers.parseUnits("0.5", DECIMALS),
-          signer1.address,
+          signers[1].address,
         ),
       )
         .to.emit(myTokenC, "Transfer")
         .withArgs(
-          signer0.address,
-          signer1.address,
+          signers[0].address,
+          signers[1].address,
           hre.ethers.parseUnits("0.5", DECIMALS),
         );
-      expect(await myTokenC.balanceOf(signer1.address)).equal(
+
+      expect(await myTokenC.balanceOf(signers[1].address)).equal(
         hre.ethers.parseUnits("0.5", DECIMALS),
       );
     });
 
-    it("should be reverted with insufficient balance error", async () => {
-      const signer1 = signers[1];
+    it("should revert with insufficient balance error", async () => {
       await expect(
         myTokenC.transfer(
           hre.ethers.parseUnits((MINTING_AMOUNT + 1n).toString(), DECIMALS),
-          signer1.address,
+          signers[1].address,
         ),
       ).to.be.revertedWith("insufficient balance");
     });
   });
 
-  describe("TranserFrom", () => {
+  describe("TransferFrom", () => {
     it("should emit Approval event", async () => {
-      const signer1 = signers[1];
       await expect(
         myTokenC.approve(
-          signer1.address,
+          signers[1].address,
           hre.ethers.parseUnits("10", DECIMALS),
         ),
       )
         .to.emit(myTokenC, "Approval")
-        .withArgs(signer1.address, hre.ethers.parseUnits("10", DECIMALS));
+        .withArgs(signers[1].address, hre.ethers.parseUnits("10", DECIMALS));
     });
 
-    it("should be reverted with insufiicient allowance error", async () => {
-      const signer0 = signers[0];
-      const signer1 = signers[1];
+    it("should revert with insufficient allowance error", async () => {
       await expect(
         myTokenC
-          .connect(signer1)
+          .connect(signers[1])
           .transferFrom(
-            signer0.address,
-            signer1.address,
+            signers[0].address,
+            signers[1].address,
             hre.ethers.parseUnits("1", DECIMALS),
           ),
       ).to.be.revertedWith("insufficient allowance");
     });
 
-    it("signer0 move token from signer1", async () => {
-      const signer0 = signers[0];
-      const signer1 = signers[1];
-
-      await expect(
-        myTokenC.approve(signer1.address, hre.ethers.parseUnits("1", DECIMALS)),
-      )
-        .to.emit(myTokenC, "Approval")
-        .withArgs(signer1.address, hre.ethers.parseUnits("1", DECIMALS));
+    it("signer1 should move token from signer0", async () => {
+      await myTokenC.approve(
+        signers[1].address,
+        hre.ethers.parseUnits("1", DECIMALS),
+      );
 
       await expect(
         myTokenC
-          .connect(signer1)
+          .connect(signers[1])
           .transferFrom(
-            signer0.address,
-            signer1.address,
+            signers[0].address,
+            signers[1].address,
             hre.ethers.parseUnits("1", DECIMALS),
           ),
       )
         .to.emit(myTokenC, "Transfer")
         .withArgs(
-          signer0.address,
-          signer1.address,
+          signers[0].address,
+          signers[1].address,
           hre.ethers.parseUnits("1", DECIMALS),
         );
 
-      expect(await myTokenC.balanceOf(signer1.address)).equal(
+      expect(await myTokenC.balanceOf(signers[1].address)).equal(
         hre.ethers.parseUnits("1", DECIMALS),
       );
     });
