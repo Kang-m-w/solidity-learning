@@ -20,6 +20,7 @@ describe("TinyBank", () => {
     tinyBankC = await hre.ethers.deployContract("TinyBank", [
       await myTokenC.getAddress() 
     ]);
+    await myTokenC.setManager(tinyBankC.getAddress());
   });
 
   describe("Initialized state check", () => {
@@ -73,6 +74,6 @@ describe("TinyBank", () => {
       expect(await myTokenC.balanceOf(signer0.address)).equal(
         hre.ethers.parseUnits((BLOCKS + MINTING_AMOUNT + 1n).toString()) 
       );
-    })
-  })
+    });
+  });
 });
