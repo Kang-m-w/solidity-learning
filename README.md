@@ -11,3 +11,23 @@ REPORT_GAS=true npx hardhat test
 npx hardhat node
 npx hardhat ignition deploy ./ignition/modules/Lock.ts
 ```
+
+```
+hardhat-test
+├─ contracts
+│  ├─ MyToken.sol
+│  └─ TinyBank.sol
+├─ hardhat.config.ts
+├─ ignition
+│  └─ modules
+│     └─ MyToken.ts
+├─ package-lock.json
+├─ package.json
+├─ README.md
+├─ test
+│  ├─ constant.ts
+│  ├─ MyToken.ts
+│  └─ TinyBank.ts
+└─ tsconfig.json
+
+```
