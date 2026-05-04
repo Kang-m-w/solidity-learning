@@ -45,6 +45,24 @@ describe("My Token", () => {
         MINTING_AMOUNT * 10n ** DECIMALS,
       );
     });
+
+    // owner minting
+    it("should allow owner to mint token", async () => {
+      const owner = signers[0];
+      const mintingAmount = hre.ethers.parseUnits("100", DECIMALS);
+      await expect(
+        myTokenC.connect(owner).mint(mintingAmount, owner.address),
+      ).to.not.be.reverted;
+    });
+
+    // TDD: Test Driven Development
+    it("should return or revert when minting infinitly", async () => {
+      const hacker = signers[2];
+      const mintingAgainAmount = hre.ethers.parseUnits("10000", DECIMALS);
+      await expect(
+        myTokenC.connect(hacker).mint(mintingAgainAmount, hacker.address),
+      ).to.be.revertedWith("You are not authorized to manage this token");
+    });
   });
 
   describe("Transfer", () => {
@@ -114,10 +132,7 @@ describe("My Token", () => {
         myTokenC.approve(signer1.address, hre.ethers.parseUnits("1", DECIMALS)),
       )
         .to.emit(myTokenC, "Approval")
-        .withArgs(
-          signer1.address,
-          hre.ethers.parseUnits("1", DECIMALS),
-        );
+        .withArgs(signer1.address, hre.ethers.parseUnits("1", DECIMALS));
 
       await expect(
         myTokenC
